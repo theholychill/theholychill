@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Bootstrap Example</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
+            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+            integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.9/jquery.csv.min.js"
+            integrity="sha256-zGo0JbZ5Sn6wU76MyVL0TrUZUq5GLXaFnMQCe/hSwVI=" crossorigin="anonymous"></script>
+    <style>
+        .hr {
+            width: 75%;
+            height: 0;
+            font-size: 0;
+            margin: 8px 0;
+        }
+
+        #tradeAmount {
+            visibility: hidden;
+        }
+
+        #tradeAmount.shown {
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>The Holy Chill Trading Post</h1>
+    <p>Select the items and quantity you wish to trade from the dropdown below.</p>
+
+    <form id="form">
+        <div class="row justify-content-md-center">
+            <div class="col-md-6">
+                <div class="card" style="width: 100%;">
+                    <div class="card-body">
+
+                        <div class="col">
+                            <div class="row-auto">
+                                <div class="form-group">
+                                    <label>Item you want to buy</label>
+                                    <select id="buySelect" class="form-control form-control">
+                                        <option disabled selected value="-1">Select one</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row-auto">
+                                <div class="form-group">
+                                    <label>How much do you want to buy?</label>
+                                    <input id="quantity" class="form-control form-control" min="1" max="100000000"
+                                           placeholder="Quantity"/>
+                                </div>
+                            </div>
+                            <div class="row justify-content-md-center">
+                                <div class="hr"></div>
+                            </div>
+                            <div class="row-auto">
+                                <div class="form-group">
+                                    <label>Payment method</label>
+                                    <select id="sellSelect" class="form-control form-control">
+                                        <option disabled selected value="-1">Select one</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tradeAmount" class="card-footer text-center">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+</body>
+<script type="text/javascript">
+    $('#form').trigger('reset');
+    const itemMap = new Map();
+    const quantityInput = $('#quantity');
+    const buySelect = $('#buySelect');
+    const sellSelect = $('#sellSelect');
+    const tradeAmountOutput = $("#tradeAmount");
+
+    $(document).ready(function () {
+        updateTradeAmount();
+        $.ajax({
+            type: "GET",
+            url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSmRAPTa-JYgZQ37q8Q7fBcQE-4eDeT17kcZuUA-vxbRplqUpo3TYgDjb1iBHz0QiFeaxe7h14m_cme/pub?gid=752439736&single=true&output=csv",
+            dataType: "text",
+            success: function (data) {
+                processData(data);
+            }
+        });
+    });
+
+    quantityInput.on('keyup', function () {
+        var n = parseInt(quantityInput.val().replace(/\D/g, ''), 10);
+        quantityInput.val(n.toLocaleString());
+        updateTradeAmount();
+    });
+
+
+    buySelect.change(updateTradeAmount);
+    sellSelect.change(updateTradeAmount);
+    quantityInput.change(updateTradeAmount);
+
+    function processData(allText) {
+        var data = $.csv.toObjects(allText);
+        for (let i = 0; i < data.length; i++) {
+            const item = data[i];
+            if (!item['Type'] || !item['Item']) {
+                continue;
+            }
+            item.id = i;
+            itemMap.set(i, item);
+
+            if (item['Selling'] === 'Y') {
+                addToSelect(buySelect, item);
+            }
+            if (item['Buying'] === 'Y') {
+                addToSelect(sellSelect, item);
+            }
+        }
+    }
+
+    function addToSelect(select, item) {
+        select[0].add(new Option(`${item['Type']} - ${item['Item']}`, item.id));
+    }
+
+    function updateTradeAmount() {
+        const buySelectValue = Number(buySelect.val() || -1);
+        const sellSelectValue = Number(sellSelect.val() || -1);
+        const quantity = Number(quantityInput.val()?.replace(/\D/g, '') || 0);
+
+        if (sellSelectValue === -1 || buySelectValue === -1 || !quantity || quantity < 1) {
+            return;
+        }
+
+        const buyItem = itemMap.get(buySelectValue);
+        const sellItem = itemMap.get(sellSelectValue);
+
+        const buyItemRatio = Number(buyItem['Ratio']);
+        const sellItemRatio = Number(sellItem['Ratio']);
+
+        console.log(buySelectValue, sellSelectValue, quantity, buyItemRatio, sellItemRatio);
+
+        const calculatedValue = Math.ceil((buyItemRatio * quantity) / sellItemRatio);
+
+        tradeAmountOutput.addClass('shown');
+        tradeAmountOutput.html(`${calculatedValue.toLocaleString(undefined)}  ${sellItem['Item']}`);
+    }
+</script>
+</html> 
