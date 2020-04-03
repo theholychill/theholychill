@@ -72,14 +72,14 @@
 
                         <div class="form-row">
 
-                            <label for="sellSelect">Payment method</label>
+                            <label for="paymentSelect">Payment method</label>
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
-                                    <select id="sellFilterSelect" class="form-control form-control">
+                                    <select id="paymentFilterSelect" class="form-control form-control">
                                         <option selected value="">Show All</option>
                                     </select>
                                 </div>
-                                <select id="sellSelect" class="form-control form-control">
+                                <select id="paymentSelect" class="form-control form-control">
                                     <option disabled selected value="-1">Select one</option>
                                 </select>
                             </div>
@@ -97,13 +97,13 @@
 <script type="text/javascript">
     $('#form').trigger('reset');
     const itemMap = new Map();
-    const typeMap = new Map();
-    const filterValues = [];
+    const buyTypeMap = new Map();
+    const paymentTypeMap = new Map();
     const quantityInput = $('#quantity');
     const buySelect = $('#buySelect');
-    const sellSelect = $('#sellSelect');
+    const paymentSelect = $('#paymentSelect');
     const buyFilterSelect = $('#buyFilterSelect');
-    const sellFilterSelect = $('#sellFilterSelect');
+    const paymentFilterSelect = $('#paymentFilterSelect');
     const tradeAmountOutput = $("#tradeAmount");
 
     $(document).ready(function () {
@@ -118,22 +118,21 @@
         });
     });
 
-    quantityInput.on('keyup', function () {
-        var n = parseInt(quantityInput.val().replace(/\D/g, ''), 10);
-        quantityInput.val(n.toLocaleString());
+    quantityInput.on('keyup', formatQuantityInput);
+
+
+    buySelect.change(() => {
+        updateQuantity();
         updateTradeAmount();
     });
-
-
-    buySelect.change(updateTradeAmount);
-    sellSelect.change(updateTradeAmount);
+    paymentSelect.change(updateTradeAmount);
     quantityInput.change(updateTradeAmount);
-    buyFilterSelect.change(updateBuyFilter);
-    sellFilterSelect.change(updateSellFilter);
+    buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buyTypeMap));
+    paymentFilterSelect.change(() => filterSelectOptions(paymentFilterSelect, paymentSelect, paymentTypeMap));
 
     function processData(allText) {
         const data = $.csv.toObjects(allText);
-        const selling = [];
+        const payments = [];
         const buying = [];
         for (let i = 0; i < data.length; i++) {
             const item = {
@@ -142,7 +141,8 @@
                 name: data[i]['Item'],
                 selling: data[i]['Selling'] === 'Y',
                 buying: data[i]['Buying'] === 'Y',
-                ratio: data[i]['Ratio']
+                defaultAmount: data[i]['DefaultAmount'].replace(/[^\d.-]/g, ''),
+                ratio: data[i]['Ratio'].replace(/[^\d.-]/g, '')
             };
 
             if (!item.type || !item.name) {
@@ -150,52 +150,81 @@
             }
             itemMap.set(i, item);
 
-            if (item.selling) {
-                selling.push(item);
+            function addToTypeMap(typeMap) {
+                if (!typeMap.has(item.type)) {
+                    typeMap.set(item.type, []);
+                }
+                typeMap.get(item.type).push(item);
             }
-            if (item.buying) {
+
+            if (item.selling) {
+                addToTypeMap(buyTypeMap);
                 buying.push(item);
             }
-
-            if (!typeMap.has(item.type)) {
-                typeMap.set(item.type, []);
-                addToTypeFilter(item.type);
+            if (item.buying) {
+                addToTypeMap(paymentTypeMap);
+                payments.push(item);
             }
-            typeMap.get(item.type).push(item);
         }
 
-        updateSelect(sellSelect, selling);
         updateSelect(buySelect, buying);
+        updateSelect(paymentSelect, payments);
+        addTypeFilters(buyFilterSelect, Array.from(buyTypeMap.keys()));
+        addTypeFilters(paymentFilterSelect, Array.from(paymentTypeMap.keys()));
     }
 
-    function updateBuyFilter() {
-        const filterValue = buyFilterSelect.val();
-        console.log(filterValue, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values());
-        updateSelect(buySelect, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values());
+    function formatQuantityInput() {
+        const n = parseInt(quantityInput.val().replace(/\D/g, ''), 10);
+        quantityInput.val(n.toLocaleString());
+        updateTradeAmount();
     }
 
-    function updateSellFilter() {
-        const filterValue = sellFilterSelect.val();
-        updateSelect(sellSelect, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values());
+    function addTypeFilters(filterSelect, types) {
+        types.forEach(type => filterSelect[0].add(new Option(type, type)));
     }
 
-    function updateSelect(select, items) {
+    function filterSelectOptions(filterSelect, select, typeMap) {
+        const filterValue = filterSelect.val();
+        updateSelect(select, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values(), !typeMap.has(filterValue));
+    }
+
+    function updateSelect(select, items, includePrefix = true) {
         select.find('option').remove();
-
-        items.forEach(item => select[0].add(new Option(`${item.name}`, item.id)));
+        select[0].add(new Option('Select one', '-1'));
+        items.forEach(item => {
+            const label = `${includePrefix ? `${item.type} - ` : ''}` + item.name;
+            select[0].add(new Option(label, item.id));
+        });
     }
 
-    function addToTypeFilter(type) {
-        buyFilterSelect[0].add(new Option(type, type));
-        sellFilterSelect[0].add(new Option(type, type));
+    function updateQuantity() {
+        const buySelectValue = Number(buySelect.val() || -1);
+        const currentQuantity = Number(quantityInput.val()?.replace(/\D/g, '') || 0);
+
+        if (buySelectValue === -1) {
+            return;
+        }
+
+        const buyItem = itemMap.get(buySelectValue);
+
+        const buyDefaultAmount = Number(buyItem.defaultAmount);
+
+
+        const minOfNumbers = Math.min(buyDefaultAmount, currentQuantity);
+        const maxOfNumbers = Math.max(buyDefaultAmount, currentQuantity);
+
+        if (!currentQuantity || currentQuantity < 1 || minOfNumbers / maxOfNumbers < .5) {
+            quantityInput.val(buyDefaultAmount.toLocaleString());
+        }
     }
 
     function updateTradeAmount() {
         const buySelectValue = Number(buySelect.val() || -1);
-        const sellSelectValue = Number(sellSelect.val() || -1);
+        const sellSelectValue = Number(paymentSelect.val() || -1);
         const quantity = Number(quantityInput.val()?.replace(/\D/g, '') || 0);
 
         if (sellSelectValue === -1 || buySelectValue === -1 || !quantity || quantity < 1) {
+            tradeAmountOutput.removeClass('shown');
             return;
         }
 
@@ -205,12 +234,10 @@
         const buyItemRatio = Number(buyItem.ratio);
         const sellItemRatio = Number(sellItem.ratio);
 
-        console.log(buySelectValue, sellSelectValue, quantity, buyItemRatio, sellItemRatio);
-
         const calculatedValue = Math.ceil((buyItemRatio * quantity) / sellItemRatio);
 
         tradeAmountOutput.addClass('shown');
-        tradeAmountOutput.html(`${calculatedValue.toLocaleString(undefined)}  ${sellItem.name}`);
+        tradeAmountOutput.html(`${calculatedValue.toLocaleString()}  ${sellItem.name}`);
     }
 </script>
 </html>
