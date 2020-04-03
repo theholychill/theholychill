@@ -97,8 +97,14 @@
 <script type="text/javascript">
     $('#form').trigger('reset');
     const itemMap = new Map();
-    const buyTypeMap = new Map();
-    const paymentTypeMap = new Map();
+    const buy = {
+        typeMap: new Map(),
+        all: []
+    };
+    const payment = {
+        typeMap: new Map(),
+        all: []
+    };
     const quantityInput = $('#quantity');
     const buySelect = $('#buySelect');
     const paymentSelect = $('#paymentSelect');
@@ -129,8 +135,8 @@
     });
     paymentSelect.change(updateTradeAmount);
     quantityInput.change(updateTradeAmount);
-    buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buyTypeMap));
-    paymentFilterSelect.change(() => filterSelectOptions(paymentFilterSelect, paymentSelect, paymentTypeMap));
+    buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buy.typeMap));
+    paymentFilterSelect.change(() => filterSelectOptions(paymentFilterSelect, paymentSelect, payment.typeMap));
 
     function processData(allText) {
         const data = $.csv.toObjects(allText);
@@ -152,27 +158,28 @@
             }
             itemMap.set(i, item);
 
-            function addToTypeMap(typeMap) {
-                if (!typeMap.has(item.type)) {
-                    typeMap.set(item.type, []);
+            function addToObject(buyPayType) {
+                buyPayType.all.push(item);
+                if (!buyPayType.typeMap.has(item.type)) {
+                    buyPayType.typeMap.set(item.type, []);
                 }
-                typeMap.get(item.type).push(item);
+                buyPayType.typeMap.get(item.type).push(item);
             }
 
             if (item.selling) {
-                addToTypeMap(buyTypeMap);
+                addToObject(buy);
                 buying.push(item);
             }
             if (item.buying) {
-                addToTypeMap(paymentTypeMap);
+                addToObject(payment);
                 payments.push(item);
             }
         }
 
         updateSelect(buySelect, buying);
         updateSelect(paymentSelect, payments);
-        addTypeFilters(buyFilterSelect, Array.from(buyTypeMap.keys()));
-        addTypeFilters(paymentFilterSelect, Array.from(paymentTypeMap.keys()));
+        addTypeFilters(buyFilterSelect, Array.from(buy.typeMap.keys()));
+        addTypeFilters(paymentFilterSelect, Array.from(payment.typeMap.keys()));
     }
 
     function formatQuantityInput() {
@@ -194,7 +201,7 @@
 
     function filterSelectOptions(filterSelect, select, typeMap) {
         const filterValue = filterSelect.val();
-        updateSelect(select, typeMap.has(filterValue) ? typeMap.get(filterValue) : Array.from(itemMap.values()), !typeMap.has(filterValue));
+        updateSelect(select, typeMap.has(filterValue) ? typeMap.get(filterValue) : [].concat.apply([], typeMap.values()), !typeMap.has(filterValue));
     }
 
     function updateSelect(select, items, includePrefix = true) {
