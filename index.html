@@ -39,56 +39,71 @@
     <h1>The Holy Chill Trading Post</h1>
     <p>Select the items and quantity you wish to trade from the dropdown below.</p>
 
-    <form id="form">
-        <div class="row justify-content-md-center">
-            <div class="col-md-6">
-                <div class="card" style="width: 100%;">
-                    <div class="card-body">
+    <div class="row justify-content-md-center">
+        <div class="col-md-8">
+            <div class="card" style="width: 100%;">
+                <div class="card-body">
 
-                        <div class="col">
-                            <div class="row-auto">
-                                <div class="form-group">
-                                    <label>Item you want to buy</label>
-                                    <select id="buySelect" class="form-control form-control">
-                                        <option disabled selected value="-1">Select one</option>
+                    <form id="form">
+
+                        <div class="form-row">
+
+                            <label for="buySelect">Item you want to buy</label>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <select id="buyFilterSelect" class="form-control form-control">
+                                        <option selected value="">Show All</option>
                                     </select>
                                 </div>
-                            </div>
-                            <div class="row-auto">
-                                <div class="form-group">
-                                    <label>How much do you want to buy?</label>
-                                    <input id="quantity" class="form-control form-control" min="1" max="100000000"
-                                           placeholder="Quantity"/>
-                                </div>
-                            </div>
-                            <div class="row justify-content-md-center">
-                                <div class="hr"></div>
-                            </div>
-                            <div class="row-auto">
-                                <div class="form-group">
-                                    <label>Payment method</label>
-                                    <select id="sellSelect" class="form-control form-control">
-                                        <option disabled selected value="-1">Select one</option>
-                                    </select>
-                                </div>
+                                <select id="buySelect" class="form-control form-control">
+                                    <option disabled selected value="-1">Select one</option>
+                                </select>
                             </div>
                         </div>
-                    </div>
-                    <div id="tradeAmount" class="card-footer text-center">
-                    </div>
+                        <div class="form-group">
+                            <label for="quantity">How much do you want to buy?</label>
+                            <input id="quantity" class="form-control form-control" min="1" max="100000000"
+                                   placeholder="Quantity"/>
+                        </div>
+
+                        <div class="row justify-content-md-center">
+                            <div class="hr"></div>
+                        </div>
+
+                        <div class="form-row">
+
+                            <label for="sellSelect">Payment method</label>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <select id="sellFilterSelect" class="form-control form-control">
+                                        <option selected value="">Show All</option>
+                                    </select>
+                                </div>
+                                <select id="sellSelect" class="form-control form-control">
+                                    <option disabled selected value="-1">Select one</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div id="tradeAmount" class="card-footer text-center">
                 </div>
             </div>
         </div>
-    </form>
+    </div>
 </div>
 
 </body>
 <script type="text/javascript">
     $('#form').trigger('reset');
     const itemMap = new Map();
+    const typeMap = new Map();
+    const filterValues = [];
     const quantityInput = $('#quantity');
     const buySelect = $('#buySelect');
     const sellSelect = $('#sellSelect');
+    const buyFilterSelect = $('#buyFilterSelect');
+    const sellFilterSelect = $('#sellFilterSelect');
     const tradeAmountOutput = $("#tradeAmount");
 
     $(document).ready(function () {
@@ -113,28 +128,66 @@
     buySelect.change(updateTradeAmount);
     sellSelect.change(updateTradeAmount);
     quantityInput.change(updateTradeAmount);
+    buyFilterSelect.change(updateBuyFilter);
+    sellFilterSelect.change(updateSellFilter);
 
     function processData(allText) {
-        var data = $.csv.toObjects(allText);
+        const data = $.csv.toObjects(allText);
+        const selling = [];
+        const buying = [];
         for (let i = 0; i < data.length; i++) {
-            const item = data[i];
-            if (!item['Type'] || !item['Item']) {
+            const item = {
+                id: i,
+                type: data[i]['Type'],
+                name: data[i]['Item'],
+                selling: data[i]['Selling'] === 'Y',
+                buying: data[i]['Buying'] === 'Y',
+                ratio: data[i]['Ratio']
+            };
+
+            if (!item.type || !item.name) {
                 continue;
             }
-            item.id = i;
             itemMap.set(i, item);
 
-            if (item['Selling'] === 'Y') {
-                addToSelect(buySelect, item);
+            if (item.selling) {
+                selling.push(item);
             }
-            if (item['Buying'] === 'Y') {
-                addToSelect(sellSelect, item);
+            if (item.buying) {
+                buying.push(item);
             }
+
+            if (!typeMap.has(item.type)) {
+                typeMap.set(item.type, []);
+                addToTypeFilter(item.type);
+            }
+            typeMap.get(item.type).push(item);
         }
+
+        updateSelect(sellSelect, selling);
+        updateSelect(buySelect, buying);
     }
 
-    function addToSelect(select, item) {
-        select[0].add(new Option(`${item['Type']} - ${item['Item']}`, item.id));
+    function updateBuyFilter() {
+        const filterValue = buyFilterSelect.val();
+        console.log(filterValue, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values());
+        updateSelect(buySelect, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values());
+    }
+
+    function updateSellFilter() {
+        const filterValue = sellFilterSelect.val();
+        updateSelect(sellSelect, typeMap.has(filterValue) ? typeMap.get(filterValue) : itemMap.values());
+    }
+
+    function updateSelect(select, items) {
+        select.find('option').remove();
+
+        items.forEach(item => select[0].add(new Option(`${item.name}`, item.id)));
+    }
+
+    function addToTypeFilter(type) {
+        buyFilterSelect[0].add(new Option(type, type));
+        sellFilterSelect[0].add(new Option(type, type));
     }
 
     function updateTradeAmount() {
@@ -149,15 +202,15 @@
         const buyItem = itemMap.get(buySelectValue);
         const sellItem = itemMap.get(sellSelectValue);
 
-        const buyItemRatio = Number(buyItem['Ratio']);
-        const sellItemRatio = Number(sellItem['Ratio']);
+        const buyItemRatio = Number(buyItem.ratio);
+        const sellItemRatio = Number(sellItem.ratio);
 
         console.log(buySelectValue, sellSelectValue, quantity, buyItemRatio, sellItemRatio);
 
         const calculatedValue = Math.ceil((buyItemRatio * quantity) / sellItemRatio);
 
         tradeAmountOutput.addClass('shown');
-        tradeAmountOutput.html(`${calculatedValue.toLocaleString(undefined)}  ${sellItem['Item']}`);
+        tradeAmountOutput.html(`${calculatedValue.toLocaleString(undefined)}  ${sellItem.name}`);
     }
 </script>
-</html> 
+</html>
