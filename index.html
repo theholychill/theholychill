@@ -16,6 +16,7 @@
             crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.9/jquery.csv.min.js"
             integrity="sha256-zGo0JbZ5Sn6wU76MyVL0TrUZUq5GLXaFnMQCe/hSwVI=" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/1cc66f82ac.js" crossorigin="anonymous"></script>
     <style>
         .hr {
             width: 75%;
@@ -31,6 +32,18 @@
         #tradeAmount.shown {
             visibility: visible;
         }
+
+        .add-remove-btn {
+            margin-left: 8px;
+        }
+
+        .input-group-prepend.filter {
+            width: 125px;
+        }
+
+        .input-group-append.percentage {
+            width: 100px;
+        }
     </style>
 </head>
 <body>
@@ -40,61 +53,77 @@
     <p>Select the items and quantity you wish to trade from the dropdown below.</p>
 
     <div class="col">
-    <div class="row justify-content-sm-center">
-        <div class="col-md-8">
-            <div class="card" style="width: 100%;">
-                <div class="card-body">
+        <div class="row justify-content-sm-center">
+            <div class="col-md-8">
+                <div class="card" style="width: 100%;">
+                    <div class="card-body">
 
-                    <form id="form">
+                        <form id="form">
 
-                        <div class="form-row">
+                            <div class="form-row">
 
-                            <label for="buySelect">Item you want to buy</label>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <select id="buyFilterSelect" class="form-control form-control">
-                                        <option selected value="">Show All</option>
+                                <label for="buySelect">Item you want to buy</label>
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend filter">
+                                        <select id="buyFilterSelect" class="form-control">
+                                            <option selected value="">Show All</option>
+                                        </select>
+                                    </div>
+                                    <select id="buySelect" class="form-control">
+                                        <option disabled selected value="-1">Select one</option>
                                     </select>
                                 </div>
-                                <select id="buySelect" class="form-control form-control">
-                                    <option disabled selected value="-1">Select one</option>
-                                </select>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="quantity">How much do you want to buy?</label>
-                            <input id="quantity" class="form-control form-control" min="1" max="100000000"
-                                   placeholder="Quantity"/>
-                        </div>
+                            <div class="form-group">
+                                <label for="quantity">How much do you want to buy?</label>
+                                <input id="quantity" class="form-control form-control" min="1" max="100000000"
+                                       placeholder="Quantity"/>
+                            </div>
 
-                        <div class="row justify-content-md-center">
-                            <div class="hr"></div>
-                        </div>
+                            <div class="row justify-content-md-center">
+                                <div class="hr"></div>
+                            </div>
 
-                        <div class="form-row">
-
-                            <label for="paymentSelect">Payment method</label>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <select id="paymentFilterSelect" class="form-control form-control">
-                                        <option selected value="">Show All</option>
+                            <div class="form-row" id="paymentItems">
+                                <label for="paymentPercent-0">Payment Method</label>
+                                <div class="input-group mb-3" id="paymentItem-0">
+                                    <div class="input-group-prepend filter">
+                                        <select id="paymentFilterSelect-0" class="form-control"
+                                                onchange="filterPaymentSelectOptions(0); updateTradeAmount()">
+                                            <option selected value="">Show All</option>
+                                        </select>
+                                    </div>
+                                    <select id="paymentSelect-0" class="form-control" onchange="updateTradeAmount()">
+                                        <option disabled selected value="-1">Select one</option>
                                     </select>
+                                    <div class="input-group-append percentage">
+                                        <div class="input-group">
+                                            <input id="paymentPercent-0" class="form-control" min="1" max="100"
+                                                   value="100" placeholder="Percent" onchange="updateTradeAmount()"/>
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <select id="paymentSelect" class="form-control form-control">
-                                    <option disabled selected value="-1">Select one</option>
-                                </select>
                             </div>
-                        </div>
-                    </form>
-                </div>
-                <div id="tradeAmount" class="card-footer text-center">
+
+                            <div class="row justify-content-md-center">
+                                <button type="button" class="btn btn-primary add-remove-btn" onclick="addPaymentItem()">
+                                    <i class="fas fa-plus"></i>
+                                    Add payment item
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div id="tradeAmount" class="card-footer text-center">
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="row justify-content-sm-center">
-        <p>DM us on Discord to finalize the trade or make an different offer.</p>
-    </div>
+        <div class="row justify-content-sm-center">
+            <p>DM us on Discord to finalize the trade or make an different offer.</p>
+        </div>
     </div>
 
 </div>
@@ -111,11 +140,14 @@
         typeMap: new Map(),
         all: []
     };
+    const paymentFields = new Map([[0, {
+        select: $('#paymentSelect-0'),
+        filter: $('#paymentFilterSelect-0'),
+        percent: $('#paymentPercent-0')
+    }]]);
     const quantityInput = $('#quantity');
     const buySelect = $('#buySelect');
-    const paymentSelect = $('#paymentSelect');
     const buyFilterSelect = $('#buyFilterSelect');
-    const paymentFilterSelect = $('#paymentFilterSelect');
     const tradeAmountOutput = $("#tradeAmount");
 
     let quantityUpdateDelayTimeout;
@@ -134,15 +166,12 @@
 
     quantityInput.on('keyup', formatQuantityInput);
 
-
     buySelect.change(() => {
         updateQuantity();
         updateTradeAmount();
     });
-    paymentSelect.change(updateTradeAmount);
     quantityInput.change(updateTradeAmount);
-    buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buy.typeMap));
-    paymentFilterSelect.change(() => filterSelectOptions(paymentFilterSelect, paymentSelect, payment.typeMap));
+    buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buy));
 
     function processData(allText) {
         const data = $.csv.toObjects(allText);
@@ -183,9 +212,9 @@
         }
 
         updateSelect(buySelect, buying);
-        updateSelect(paymentSelect, payments);
+        updateSelect(paymentFields.get(0).select, payments);
         addTypeFilters(buyFilterSelect, Array.from(buy.typeMap.keys()));
-        addTypeFilters(paymentFilterSelect, Array.from(payment.typeMap.keys()));
+        addTypeFilters(paymentFields.get(0).filter, Array.from(payment.typeMap.keys()));
     }
 
     function formatQuantityInput() {
@@ -205,9 +234,13 @@
         types.forEach(type => filterSelect[0].add(new Option(type, type)));
     }
 
-    function filterSelectOptions(filterSelect, select, typeMap) {
+    function filterPaymentSelectOptions(index) {
+        filterSelectOptions(paymentFields.get(index).filter, paymentFields.get(index).select, payment);
+    }
+
+    function filterSelectOptions(filterSelect, select, typeObject) {
         const filterValue = filterSelect.val();
-        updateSelect(select, typeMap.has(filterValue) ? typeMap.get(filterValue) : [].concat.apply([], typeMap.values()), !typeMap.has(filterValue));
+        updateSelect(select, typeObject.typeMap.has(filterValue) ? typeObject.typeMap.get(filterValue) : typeObject.all, !typeObject.typeMap.has(filterValue));
     }
 
     function updateSelect(select, items, includePrefix = true) {
@@ -241,24 +274,92 @@
 
     function updateTradeAmount() {
         const buySelectValue = Number(buySelect.val() || -1);
-        const sellSelectValue = Number(paymentSelect.val() || -1);
         const quantity = Number(quantityInput.val()?.replace(/\D/g, '') || 0);
-
-        if (sellSelectValue === -1 || buySelectValue === -1 || !quantity || quantity < 1) {
+        if (buySelectValue === -1 || !quantity || quantity < 1) {
             tradeAmountOutput.removeClass('shown');
             return;
         }
-
         const buyItem = itemMap.get(buySelectValue);
-        const sellItem = itemMap.get(sellSelectValue);
-
         const buyItemRatio = Number(buyItem.ratio);
-        const sellItemRatio = Number(sellItem.ratio);
 
-        let calculatedValue = Math.ceil((buyItemRatio * quantity) / sellItemRatio);
+        let html = '';
+        let totalPercentage = 0;
+        let hasError = false;
+
+        for (const [key, paymentItem] of paymentFields) {
+            const sellSelectValue = Number(paymentItem.select.val() || -1);
+            const sellPercentValue = Number(paymentItem.percent.val() || 0);
+            if (sellSelectValue === -1) {
+                continue;
+            }
+            totalPercentage += sellPercentValue;
+            if (totalPercentage > 100) {
+                html = 'Total percentage cannot be greater than 100!';
+                hasError = true;
+                break;
+            }
+            const sellItem = itemMap.get(sellSelectValue);
+            const sellItemRatio = Number(sellItem.ratio);
+            let calculatedValue = Math.ceil((buyItemRatio * quantity) / sellItemRatio * (sellPercentValue / 100));
+            html += `${calculatedValue.toLocaleString()}  ${sellItem.name}<br/>`;
+        }
+        if (!hasError && Math.round(totalPercentage) !== 100 && Math.round(totalPercentage) !== 0) {
+            html = 'Total percentage of selected items does not add up to 100!';
+            hasError = true;
+        }
 
         tradeAmountOutput.addClass('shown');
-        tradeAmountOutput.html(`${calculatedValue.toLocaleString()}  ${sellItem.name}`);
+        if (hasError) {
+            tradeAmountOutput.addClass('text-white');
+            tradeAmountOutput.addClass('bg-danger');
+        } else {
+            tradeAmountOutput.removeClass('text-white');
+            tradeAmountOutput.removeClass('bg-danger');
+        }
+        tradeAmountOutput.html(html);
     }
+
+    function remove(index) {
+        $(`#paymentItem-${index}`).remove();
+        paymentFields.delete(index);
+
+        const count = $("div[id^='paymentItem-']").length;
+        const percentage = +((100 / count).toFixed(2));
+        for (const [key, paymentItem] of paymentFields) {
+            paymentItem.percent.val(percentage);
+        }
+        updateTradeAmount();
+    }
+
+    function addPaymentItem() {
+        const index = $("div[id^='paymentItem-']").length;
+        const html = `<div class="input-group mb-3" id="paymentItem-${index}">` +
+            `<div class="input-group-prepend filter">` +
+            `<select id="paymentFilterSelect-${index}" class="form-control" onchange="filterPaymentSelectOptions(${index}); updateTradeAmount()">` +
+            `<option selected value="">Show All</option>` +
+            `</select></div><select id="paymentSelect-${index}" class="form-control" onchange="updateTradeAmount()">` +
+            `<option disabled selected value="-1">Select one</option></select>` +
+            `<div class="input-group-append percentage"><div class="input-group">` +
+            `<input id="paymentPercent-${index}" class="form-control" min="1" max="100" ` +
+            `placeholder="Percent" onchange="updateTradeAmount()"/>` +
+            `<div class="input-group-append"><span class="input-group-text">%</span></div></div></div>` +
+            `<button type="button" class="btn btn-dark add-remove-btn" onclick="remove(${index})"><i class="fas fa-trash-alt"></i></button></div>`;
+        $('#paymentItems').append(html);
+
+        paymentFields.set(index, {
+            select: $(`#paymentSelect-${index}`),
+            filter: $(`#paymentFilterSelect-${index}`),
+            percent: $(`#paymentPercent-${index}`)
+        });
+
+        addTypeFilters(paymentFields.get(index).filter, Array.from(payment.typeMap.keys()));
+        filterPaymentSelectOptions(index);
+
+        const percentage = +((100 / (index + 1)).toFixed(2));
+        for (const [key, paymentItem] of paymentFields) {
+            paymentItem.percent.val(percentage);
+        }
+    }
+
 </script>
 </html>
