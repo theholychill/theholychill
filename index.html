@@ -130,7 +130,6 @@
 
 </body>
 <script type="text/javascript">
-    $('#form').trigger('reset');
     const itemMap = new Map();
     const buy = {
         typeMap: new Map(),
@@ -153,6 +152,7 @@
     let quantityUpdateDelayTimeout;
 
     $(document).ready(function () {
+        $('#form').trigger('reset');
         updateTradeAmount();
         $.ajax({
             type: "GET",
