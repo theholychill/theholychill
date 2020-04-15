@@ -6,8 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
           integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
-            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
             integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
             crossorigin="anonymous"></script>
@@ -46,89 +45,8 @@
         }
     </style>
 </head>
+
 <body>
-
-<div class="container">
-    <h1>The Holy Chill Trading Post</h1>
-    <p>Select the items and quantity you wish to trade from the dropdown below.</p>
-
-    <div class="col">
-        <div class="row justify-content-sm-center">
-            <div class="col-md-8">
-                <div class="card" style="width: 100%;">
-                    <div class="card-body">
-
-                        <form id="form">
-
-                            <div class="form-row">
-
-                                <label for="buySelect">Item you want to buy</label>
-                                <div class="input-group mb-3">
-                                    <div class="input-group-prepend filter">
-                                        <select id="buyFilterSelect" class="form-control">
-                                            <option selected value="">Show All</option>
-                                        </select>
-                                    </div>
-                                    <select id="buySelect" class="form-control">
-                                        <option disabled selected value="-1">Select one</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="quantity">How much do you want to buy?</label>
-                                <input id="quantity" class="form-control form-control" min="1" max="100000000"
-                                       placeholder="Quantity"/>
-                            </div>
-
-                            <div class="row justify-content-md-center">
-                                <div class="hr"></div>
-                            </div>
-
-                            <div class="form-row" id="paymentItems">
-                                <label for="paymentPercent-0">Payment Method</label>
-                                <div class="input-group mb-3" id="paymentItem-0">
-                                    <div class="input-group-prepend filter">
-                                        <select id="paymentFilterSelect-0" class="form-control"
-                                                onchange="filterPaymentSelectOptions(0); updateTradeAmount()">
-                                            <option selected value="">Show All</option>
-                                        </select>
-                                    </div>
-                                    <select id="paymentSelect-0" class="form-control" onchange="updateTradeAmount()">
-                                        <option disabled selected value="-1">Select one</option>
-                                    </select>
-                                    <div class="input-group-append percentage">
-                                        <div class="input-group">
-                                            <input id="paymentPercent-0" class="form-control" min="1" max="100"
-                                                   value="100" placeholder="Percent" onchange="updateTradeAmount()"/>
-                                            <div class="input-group-append">
-                                                <span class="input-group-text">%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row justify-content-md-center">
-                                <button type="button" class="btn btn-primary add-remove-btn" onclick="addPaymentItem()">
-                                    <i class="fas fa-plus"></i>
-                                    Add payment item
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    <div id="tradeAmount" class="card-footer text-center">
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row justify-content-sm-center">
-            <p>DM us on Discord to finalize the trade or make an different offer.</p>
-        </div>
-    </div>
-
-</div>
-
-</body>
 <script type="text/javascript">
     const itemMap = new Map();
     const buy = {
@@ -139,39 +57,49 @@
         typeMap: new Map(),
         all: []
     };
-    const paymentFields = new Map([[0, {
-        select: $('#paymentSelect-0'),
-        filter: $('#paymentFilterSelect-0'),
-        percent: $('#paymentPercent-0')
-    }]]);
-    const quantityInput = $('#quantity');
-    const buySelect = $('#buySelect');
-    const buyFilterSelect = $('#buyFilterSelect');
-    const tradeAmountOutput = $("#tradeAmount");
+    let paymentFields;
+    let quantityInput;
+    let buySelect;
+    let buyFilterSelect;
+    let tradeAmountOutput;
 
     let quantityUpdateDelayTimeout;
 
     $(document).ready(function () {
         $('#form').trigger('reset');
-        updateTradeAmount();
+        paymentFields = new Map([[0, {
+            select: $('#paymentSelect-0'),
+            filter: $('#paymentFilterSelect-0'),
+            percent: $('#paymentPercent-0')
+        }]]);
+        quantityInput = $('#quantity');
+        buySelect = $('#buySelect');
+        buyFilterSelect = $('#buyFilterSelect');
+        tradeAmountOutput = $("#tradeAmount");
+
+        quantityInput.on('keyup', formatQuantityInput);
+
+        buySelect.change(() => {
+            updateQuantity();
+            updateTradeAmount();
+        });
+        quantityInput.change(updateTradeAmount);
+        buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buy));
+
         $.ajax({
+            cache: false,
+            headers: { "cache-control": "no-cache" },
+            async: true,
             type: "GET",
+            crossDomain: true,
             url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSmRAPTa-JYgZQ37q8Q7fBcQE-4eDeT17kcZuUA-vxbRplqUpo3TYgDjb1iBHz0QiFeaxe7h14m_cme/pub?gid=752439736&single=true&output=csv",
             dataType: "text",
             success: function (data) {
                 processData(data);
+                updateTradeAmount();
             }
         });
     });
-
-    quantityInput.on('keyup', formatQuantityInput);
-
-    buySelect.change(() => {
-        updateQuantity();
-        updateTradeAmount();
-    });
-    quantityInput.change(updateTradeAmount);
-    buyFilterSelect.change(() => filterSelectOptions(buyFilterSelect, buySelect, buy));
 
     function processData(allText) {
         const data = $.csv.toObjects(allText);
@@ -231,7 +159,7 @@
     }
 
     function addTypeFilters(filterSelect, types) {
-        types.forEach(type => filterSelect[0].add(new Option(type, type)));
+        types.forEach(type => filterSelect.append(`<option value="${type}">${type}</option>`));
     }
 
     function filterPaymentSelectOptions(index) {
@@ -244,17 +172,17 @@
     }
 
     function updateSelect(select, items, includePrefix = true) {
-        select.find('option').remove();
-        select[0].add(new Option('Select one', '-1'));
+        select.empty();
+        select.append(`<option value="-1">Select one</option>`);
         items.forEach(item => {
             const label = `${includePrefix ? `${item.type} - ` : ''}` + item.name;
-            select[0].add(new Option(label, item.id));
+            select.append(`<option value="${item.id}">${label}</option>`);
         });
     }
 
     function updateQuantity() {
         const buySelectValue = Number(buySelect.val() || -1);
-        const currentQuantity = Number(quantityInput.val()?.replace(/\D/g, '') || 0);
+        const currentQuantity = Number((quantityInput.val() || '').replace(/\D/g, ''));
 
         if (buySelectValue === -1) {
             return;
@@ -274,7 +202,7 @@
 
     function updateTradeAmount() {
         const buySelectValue = Number(buySelect.val() || -1);
-        const quantity = Number(quantityInput.val()?.replace(/\D/g, '') || 0);
+        const quantity = Number((quantityInput.val() || '').replace(/\D/g, ''));
         if (buySelectValue === -1 || !quantity || quantity < 1) {
             tradeAmountOutput.removeClass('shown');
             return;
@@ -360,6 +288,87 @@
             paymentItem.percent.val(percentage);
         }
     }
-
 </script>
+
+<div class="container">
+    <h1>The Holy Chill Trading Post</h1>
+    <p>Select the items and quantity you wish to trade from the dropdown below.</p>
+
+    <div class="col">
+        <div class="row justify-content-sm-center">
+            <div class="col-md-8">
+                <div class="card" style="width: 100%;">
+                    <div class="card-body">
+
+                        <form id="form">
+
+                            <div class="form-row">
+
+                                <label for="buySelect">Item you want to buy</label>
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend filter">
+                                        <select id="buyFilterSelect" class="form-control">
+                                            <option selected value="">Show All</option>
+                                        </select>
+                                    </div>
+                                    <select id="buySelect" class="form-control">
+                                        <option disabled selected value="-1">Select one</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="quantity">How much do you want to buy?</label>
+                                <input id="quantity" class="form-control form-control" min="1" max="100000000"
+                                       placeholder="Quantity"/>
+                            </div>
+
+                            <div class="row justify-content-md-center">
+                                <div class="hr"></div>
+                            </div>
+
+                            <div class="form-row" id="paymentItems">
+                                <label for="paymentPercent-0">Payment Method</label>
+                                <div class="input-group mb-3" id="paymentItem-0">
+                                    <div class="input-group-prepend filter">
+                                        <select id="paymentFilterSelect-0" class="form-control"
+                                                onchange="filterPaymentSelectOptions(0); updateTradeAmount()">
+                                            <option selected value="">Show All</option>
+                                        </select>
+                                    </div>
+                                    <select id="paymentSelect-0" class="form-control" onchange="updateTradeAmount()">
+                                        <option disabled selected value="-1">Select one</option>
+                                    </select>
+                                    <div class="input-group-append percentage">
+                                        <div class="input-group">
+                                            <input id="paymentPercent-0" class="form-control" min="1" max="100"
+                                                   value="100" placeholder="Percent" onchange="updateTradeAmount()"/>
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row justify-content-md-center">
+                                <button type="button" class="btn btn-primary add-remove-btn" onclick="addPaymentItem()">
+                                    <i class="fas fa-plus"></i>
+                                    Add payment item
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div id="tradeAmount" class="card-footer text-center">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-sm-center">
+            <p>DM us on Discord to finalize the trade or make an different offer.</p>
+        </div>
+    </div>
+
+</div>
+
+</body>
 </html>
