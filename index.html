@@ -43,6 +43,37 @@
         .input-group-append.percentage {
             width: 100px;
         }
+
+        .best-value {
+            margin-top: 4em;
+        }
+
+        .table-sm {
+            max-height: 418px;
+        }
+
+        table {
+            display: flex;
+            flex-flow: column;
+            width: 100%;
+        }
+
+        thead {
+            flex: 0 0 auto;
+        }
+
+        tbody {
+            flex: 1 1 auto;
+            display: block;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        tr {
+            width: 100%;
+            display: table;
+            table-layout: fixed;
+        }
     </style>
 </head>
 
@@ -88,7 +119,7 @@
 
         $.ajax({
             cache: false,
-            headers: { "cache-control": "no-cache" },
+            headers: {"cache-control": "no-cache"},
             async: true,
             type: "GET",
             crossDomain: true,
@@ -143,6 +174,15 @@
         updateSelect(paymentFields.get(0).select, payments);
         addTypeFilters(buyFilterSelect, Array.from(buy.typeMap.keys()));
         addTypeFilters(paymentFields.get(0).filter, Array.from(payment.typeMap.keys()));
+        populateValueTable(payments);
+    }
+
+    function populateValueTable(paymentItems) {
+        const valueTableBody = $("#valueTable");
+        paymentItems.sort((a, b) => b.ratio - a.ratio);
+        const rows = paymentItems.map((value, index) => `<tr><th scope=\"row\">${index + 1}</th>` +
+            `<td>${value.type}</td><td>${value.name}</td></tr>`);
+        valueTableBody.append(rows.join(''));
     }
 
     function formatQuantityInput() {
@@ -365,6 +405,27 @@
         </div>
         <div class="row justify-content-sm-center">
             <p>DM us on Discord to finalize the trade or make an different offer.</p>
+        </div>
+        <div class="row justify-content-sm-center best-value">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Best value payment items</h5>
+                        <table class="table table-sm table-responsive table-striped">
+                            <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Item</th>
+                            </tr>
+                            </thead>
+                            <tbody id="valueTable">
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
