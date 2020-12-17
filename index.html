@@ -269,7 +269,7 @@
             const sellItem = itemMap.get(sellSelectValue);
             const sellItemRatio = Number(sellItem.ratio);
             let calculatedValue = Math.ceil((buyItemRatio * quantity) / sellItemRatio * (sellPercentValue / 100));
-            html += `${calculatedValue.toLocaleString()}  ${sellItem.name}<br/>`;
+            html += `${calculatedValue.toLocaleString()}  ${sellItem.name} - ${sellItem.type}<br/>`;
         }
         if (!hasError && Math.round(totalPercentage) !== 100 && Math.round(totalPercentage) !== 0) {
             html = 'Total percentage of selected items does not add up to 100!';
